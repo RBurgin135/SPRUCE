@@ -300,6 +300,7 @@ class Mouse:
             else:
                 self.selected.Drop(copy.deepcopy(self.pycoord))
         else:
+            B.credits += self.selected.cost
             B.parts.remove(self.selected)
 
         self.selected = False
@@ -314,6 +315,7 @@ class Mouse:
                 for p in range(0,50):
                     B.particles.append(Particle(i.coord, (116,116,116), 5))
 
+                B.credits += i.cost
                 B.parts.remove(i)
                 break
 
