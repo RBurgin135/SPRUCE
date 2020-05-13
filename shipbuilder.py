@@ -32,19 +32,20 @@ class Board:
         self.ambience = pygame.mixer.Sound("sounds\\ambience.wav")
 
         #dim
-        self.width = 10
+        self.width = 11
         self.height = 15
         self.thickness = 50
         self.coord = [scr_width//2-(self.width*self.thickness//2), scr_height//2-(self.height*self.thickness//2)]
 
+        #limit
+        self.CPlimit = 1
+
         #left bar
         self.BarWidth = 260
-        self.items = [Cockpit(False), Engine(False), Gun(False), Block(False), Corner(False), Concave(False)]
+        self.items = [Cockpit(False), Engine(False), Cannon(False), Block(False), Corner(False), Concave(False), Convex(False)]
         self.gap = 920 // len(self.items)
         self.BuildmodeTransition()
         
-
-    
     def Show(self):
         #board
         if self.buildmode:
@@ -80,9 +81,14 @@ class Board:
                     M.highlight = self.showcase.index(i)
                     pygame.draw.rect(window, (60,82,83), (i[0], i[1], self.BarWidth, self.gap))
 
-                    #prices
+                    #prices + limit
                     item = self.items[M.highlight]
                     PrcFont = pygame.font.SysFont('', 25)
+                    #limit
+                    if self.showcase.index(i) == 0:
+                        Text = PrcFont.render("MAX 1", False, (247,216,148))
+                        window.blit(Text, (item.coord[0]-23, item.coord[1]-60))
+                    #prices
                     Text = PrcFont.render(str(item.cost), False, (247,216,148))
                     window.blit(Text, (item.coord[0]-10, item.coord[1]+50))
 
@@ -103,13 +109,46 @@ class Board:
         if not pygame.mixer.get_busy():
             pygame.mixer.Sound.play(self.ambience)
 
+    def ConnectedScan(self):
+        result = True
+        ticker = [[0,-1],[1,0],[0,1],[-1,0]]
+        for i in self.parts:
+            bind = False
+            for x in ticker:
+                for p in self.parts:
+                    if i.pycoord[0]+x[0] == p.pycoord[0]:
+                        if i.pycoord[1]+x[1] == p.pycoord[1]:
+                            bind = True
+                            break
+                if bind:
+                    break
+            if not bind:
+                result = False
+        
+        return result
+
     def FlightTransition(self):
         self.buildmode = False
-
+        if M.selected != False:
+            B.credits += M.selected.cost
+            if M.selected.CP:
+                B.CPlimit += 1
+            B.parts.remove(M.selected)
         for i in self.items:
             self.parts.remove(i)
-        
-    
+
+        #cockpit check
+        seat = False
+        for i in self.parts:
+            if i.CP:
+                seat = True
+                break
+
+        #connected check
+        if not seat:
+            if not self.ConnectedScan():
+                self.BuildmodeTransition()
+         
     def BuildmodeTransition(self):
         self.buildmode = True
 
@@ -125,7 +164,59 @@ class Board:
             i.coord = [x+self.BarWidth//2 , y+self.gap//2]
             self.showcase.append([x , y])
 
+class Ship:
+    def __init__(self):
+        #suvat
+        self.F = [0,0] 
+        self.u = [0,0]
+        self.a = [0,0]
+        self.s = [0,0]
 
+        #other variables
+        self.coord = [0,0]
+        self.m = 0
+        for i in B.parts:
+            self.m += i.m
+            if i.CP:
+                self.coord = copy.deepcopy(i.coord)
+
+        #engine
+        self.on = pygame.image.load("images\engine_on.png")
+        self.off = pygame.image.load("images\engine_off.png")
+
+    def Calculate(self):
+        #self.BoundaryCheck()
+        Resultant_F = []
+        #find resultant force in axis (F=ma)
+        Resultant_F.append(self.F[0]) 
+        Resultant_F.append(self.F[1])
+
+        for i in range (0,2):
+            #find acceleration on axis
+            self.a[i] = 0
+            if Resultant_F[i] != 0:
+                self.a[i] =  Resultant_F[i] / self.m
+
+            #find displacement on axis (s = ut- 1/2 at^2)
+            self.s[i] = self.u[i] - 0.5*self.a[i]
+
+        #displace
+        self.coord[0] -= self.s[0]
+        self.coord[1] += self.s[1]
+
+    def Reset(self):
+        #find velocity used in next Calculate (v = u + at)
+        for i in range (0,2):
+            self.u[i] = self.u[i] + self.a[i]
+            self.u[i] *= 0.996
+
+            #reset values
+            self.F[i] = 0
+        
+        #reset engine image
+        for i in B.parts:
+            if i.image == self.on:
+                i.image = self.off
 
 class Part:
     def __init__(self, held):
@@ -134,10 +225,12 @@ class Part:
         self.pycoord = [False,False]
         self.coord = copy.deepcopy(M.coord)
 
-        #differentiate later===========
+        #gameplay
         self.deg = 0
         self.cost = 50
         self.m = 10
+        self.health = 10
+        self.CP = False
 
         #image
         self.width = self.image.get_height()
@@ -165,6 +258,32 @@ class Part:
         self.pycoord = [False,False]
         self.coord = copy.deepcopy(M.coord)
 
+
+class Cockpit(Part):
+    def __init__(self, held):
+        #image
+        self.image = pygame.image.load("images\cockpit.png")
+
+        #sound
+        self.dropsound = [pygame.mixer.Sound("sounds\cockpit.wav")]
+
+        super().__init__(held)
+        
+        #gameplay
+        self.CP = True
+        self.deg = 1
+
+class Engine(Part):
+    def __init__(self, held):
+        #image
+        self.image = pygame.image.load("images\engine_off.png")
+
+        #sound
+        self.dropsound = [pygame.mixer.Sound("sounds\engine.wav")]
+
+        super().__init__(held)
+
+
 class Hull(Part):
     def __init__(self, held):
         #sound
@@ -180,6 +299,9 @@ class Block(Hull):
         self.image = pygame.image.load("images\\1x1.png")
 
         super().__init__(held)
+
+        #gameplay
+        self.deg = 1
 
 class Corner(Hull):
     def __init__(self, held):
@@ -197,37 +319,28 @@ class Concave(Hull):
         super().__init__(held)
         self.cost = 25
 
-class Cockpit(Part):
+class Convex(Hull):
     def __init__(self, held):
         #image
-        self.image = pygame.image.load("images\cockpit.png")
-
-        #sound
-        self.dropsound = [pygame.mixer.Sound("sounds\cockpit.wav")]
+        self.image = pygame.image.load("images\convex.png")
 
         super().__init__(held)
-        
+        self.cost = 25
 
-class Engine(Part):
-    def __init__(self, held):
-        #image
-        self.image = pygame.image.load("images\engine.png")
-
-        #sound
-        self.dropsound = [pygame.mixer.Sound("sounds\engine.wav")]
-
-        super().__init__(held)
 
 class Gun(Part):
     def __init__(self, held):
-        #image
-        self.image = pygame.image.load("images\gun.png")
-
         #sound
         self.dropsound = [pygame.mixer.Sound("sounds\gun.wav")]
 
         super().__init__(held)
-        
+
+class Cannon(Gun):
+    def __init__(self, held):
+        #image
+        self.image = pygame.image.load("images\cannon.png")
+
+        super().__init__(held)
 
 #class Shield(Part):
 #    def __init__(self, held):
@@ -285,12 +398,13 @@ class Mouse:
                 if keys[pygame.K_DELETE]:
                     self.Delete()
                 if self.selected != False:
-                    if keys[pygame.K_LEFT]:
-                        self.selected.image = pygame.transform.rotate(self.selected.image, 90)
-                        self.selected.deg += 90
-                    if keys[pygame.K_RIGHT]:
-                        self.selected.image = pygame.transform.rotate(self.selected.image, -90)
-                        self.selected.deg -= 90
+                    if self.selected.deg != 1:
+                        if keys[pygame.K_LEFT]:
+                            self.selected.image = pygame.transform.rotate(self.selected.image, 90)
+                            self.selected.deg += 90
+                        if keys[pygame.K_RIGHT]:
+                            self.selected.image = pygame.transform.rotate(self.selected.image, -90)
+                            self.selected.deg -= 90
                 if keys[pygame.K_SPACE]:
                     if B.buildmode:
                         B.FlightTransition()
@@ -337,13 +451,15 @@ class Mouse:
         elif B.credits > 0:
             #left bar
             if self.highlight == 0:
-                B.parts.append(Cockpit(True))
-                self.selected = B.parts[-1]
+                if B.CPlimit > 0:
+                    B.parts.append(Cockpit(True))
+                    self.selected = B.parts[-1]
+                    B.CPlimit -= 1
             elif self.highlight == 1:
                 B.parts.append(Engine(True))
                 self.selected = B.parts[-1]
             elif self.highlight == 2:
-                B.parts.append(Gun(True))
+                B.parts.append(Cannon(True))
                 self.selected = B.parts[-1]
             elif self.highlight == 3:
                 B.parts.append(Block(True))
@@ -353,6 +469,9 @@ class Mouse:
                 self.selected = B.parts[-1]
             elif self.highlight == 5:
                 B.parts.append(Concave(True))
+                self.selected = B.parts[-1]
+            elif self.highlight == 6:
+                B.parts.append(Convex(True))
                 self.selected = B.parts[-1]
             
             #credits + sound
@@ -365,7 +484,6 @@ class Mouse:
                 #sound
                 pygame.mixer.Sound.play(self.selected.liftsound)
             
-
     def ClickUP(self):
         self.Coordfinder()
 
@@ -379,11 +497,16 @@ class Mouse:
             
             #verdict
             if occupied:
+                B.credits += self.selected.cost
+                if self.selected.CP:
+                    B.CPlimit += 1
                 B.parts.remove(self.selected)
             else:
                 self.selected.Drop(copy.deepcopy(self.pycoord))
         else:
             B.credits += self.selected.cost
+            if self.selected.CP:
+                B.CPlimit += 1
             B.parts.remove(self.selected)
 
         self.selected = False
@@ -399,6 +522,8 @@ class Mouse:
                     B.particles.append(Particle(i.coord, (116,116,116), 5))
 
                 B.credits += i.cost
+                if i.CP:
+                    B.CPlimit += 1
                 B.parts.remove(i)
                 break
 
