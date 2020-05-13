@@ -24,6 +24,7 @@ class Board:
     def __init__(self):
         #gameplay
         self.RUN = True
+        self.ships = []
         self.parts = []
         self.particles = []
         self.credits = 900
@@ -143,11 +144,16 @@ class Board:
             if i.CP:
                 seat = True
                 break
+        if not seat:
+            self.BuildmodeTransition()
 
         #connected check
-        if not seat:
-            if not self.ConnectedScan():
-                self.BuildmodeTransition()
+        if not self.ConnectedScan():
+            self.BuildmodeTransition()
+        
+        #empty check
+        if len(self.parts) == 0:
+            self.BuildmodeTransition()
          
     def BuildmodeTransition(self):
         self.buildmode = True
@@ -173,7 +179,20 @@ class Ship:
         self.s = [0,0]
 
         #other variables
-        self.coord = [0,0]
+        self.deg = 0
+
+        #find CP
+        for i in B.parts:
+            if i.CP:
+                self.coord = copy.deepcopy(i.coord)
+
+        #accumulate thrust
+        self.strength = 0
+        for i in B.parts:
+            if i.CP == "engine":
+                self.strength += 1
+
+        #acumulate mass
         self.m = 0
         for i in B.parts:
             self.m += i.m
@@ -218,6 +237,33 @@ class Ship:
             if i.image == self.on:
                 i.image = self.off
 
+    def Active(self):
+        #show engines on
+        for i in B.parts:
+            if i.image == self.on:
+                i.image = self.off
+
+        thrust = self.strength
+
+        #pythagoras
+        radians = math.radians(self.deg)
+        opp = thrust * math.sin(radians)
+        adj = thrust * math.cos(radians)
+        self.F[0] = -opp
+        self.F[1] = adj
+
+    def Turn(self, left):
+        if left:
+            change = 2
+        else:
+            change = -2
+
+        self.deg += change
+
+        for i in B.parts:
+            i.flightdeg += change
+
+
 class Part:
     def __init__(self, held):
         #details
@@ -226,6 +272,7 @@ class Part:
         self.coord = copy.deepcopy(M.coord)
 
         #gameplay
+        self.flightdeg = 0
         self.deg = 0
         self.cost = 50
         self.m = 10
@@ -233,17 +280,30 @@ class Part:
         self.CP = False
 
         #image
+        self.blitimage = pygame.transform.rotate(self.image, self.deg)
         self.width = self.image.get_height()
         self.height = self.image.get_width()
 
         #sound
         self.liftsound = pygame.mixer.Sound("sounds\lift.wav")
 
-    def Show(self):
+    def BuildShow(self):
         if self.held:
             self.coord = copy.deepcopy(M.coord)
         blit = [self.coord[0]-self.width//2, self.coord[1]-self.height//2]
         window.blit(self.image, blit)
+
+    def FlightShow(self):
+        #dim
+        self.width = self.blitimage.get_width()
+        self.height = self.blitimage.get_height()
+
+        #blit
+        self.blitimage = pygame.transform.rotate(self.image, self.flightdeg)
+        blit = [self.coord[0] - self.width//2,self.coord[1] - self.height//2]
+
+        #write
+        window.blit(self.blitimage,(blit[0] , blit[1]))
     
     def Drop(self, pycoord):
         self.held = False
@@ -282,6 +342,7 @@ class Engine(Part):
         self.dropsound = [pygame.mixer.Sound("sounds\engine.wav")]
 
         super().__init__(held)
+        self.CP = "engine"
 
 
 class Hull(Part):
@@ -383,16 +444,18 @@ class Mouse:
         self.selected = False
         self.highlight = -1
 
-    def Input(self):
+    def BuildInput(self):
         for event in pygame.event.get():
-            if B.buildmode:
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    self.ClickDOWN()
-                if event.type == pygame.MOUSEBUTTONUP:
-                    if self.selected!= False:
-                        self.ClickUP()
+            #mouse
             if event.type == pygame.MOUSEMOTION:
                 self.coord[0], self.coord[1] = pygame.mouse.get_pos()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                self.BuildClickDOWN()
+            if event.type == pygame.MOUSEBUTTONUP:
+                if self.selected!= False:
+                    self.BuildClickUP()
+
+            #keys
             if event.type == pygame.KEYDOWN:
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_DELETE]:
@@ -406,10 +469,38 @@ class Mouse:
                             self.selected.image = pygame.transform.rotate(self.selected.image, -90)
                             self.selected.deg -= 90
                 if keys[pygame.K_SPACE]:
-                    if B.buildmode:
-                        B.FlightTransition()
-                    else:
-                        B.BuildmodeTransition()
+                    B.FlightTransition()
+    
+    def FlightInput(self):
+        keys = pygame.key.get_pressed()
+        for event in pygame.event.get():
+            #mouse
+            if event.type == pygame.MOUSEMOTION:
+                self.coord[0], self.coord[1] = pygame.mouse.get_pos()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                self.FlightClickDOWN()
+
+            #key
+            if event.type == pygame.KEYDOWN:
+                keys = pygame.key.get_pressed()
+                if keys[pygame.K_SPACE]:
+                    B.BuildmodeTransition()
+        if keys[pygame.K_w]:
+            #S.Active()
+            pass
+        if keys[pygame.K_a]:
+            S.Turn(True)
+        if keys[pygame.K_d]:
+            S.Turn(False)
+
+    def FlightClickDOWN(self):
+        #exit
+        if self.coord[0] > scr_width-50 and self.coord[0] < scr_width and self.coord[1] < scr_height and self.coord[1] > scr_height-50:
+            B.RUN = False
+
+        #effects
+        for i in range(0,25):
+            B.particles.append(Particle(self.coord, (214,245,246), 3))
 
     def Coordfinder(self):
         #finds coords on board
@@ -431,7 +522,7 @@ class Mouse:
             self.found = True
             self.pycoord = [X, Y]
 
-    def ClickDOWN(self):
+    def BuildClickDOWN(self):
         self.Coordfinder()
         #exit
         if self.coord[0] > scr_width-50 and self.coord[0] < scr_width and self.coord[1] < scr_height and self.coord[1] > scr_height-50:
@@ -484,7 +575,7 @@ class Mouse:
                 #sound
                 pygame.mixer.Sound.play(self.selected.liftsound)
             
-    def ClickUP(self):
+    def BuildClickUP(self):
         self.Coordfinder()
 
         if self.found:
@@ -530,17 +621,24 @@ class Mouse:
 
 M = Mouse()
 B = Board()
-
+S = Ship()
 
 while B.RUN:
     pygame.time.delay(1)
     window.fill((33,44,48))
 
-    M.Input()
+    if B.buildmode:
+        M.BuildInput()
+    else:
+        M.FlightInput()
     B.Show()
-
-    for i in B.parts:
-        i.Show()
+    
+    if B.buildmode: 
+        for i in B.parts:
+            i.BuildShow()
+    else:
+        for i in B.parts:
+            i.FlightShow()
     for i in B.particles:
         i.Show()
 
