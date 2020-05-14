@@ -27,6 +27,7 @@ class Board:
         self.ships = []
         self.parts = []
         self.particles = []
+        self.projectiles = []
         self.credits = 1000
 
         #sounds
@@ -114,8 +115,9 @@ class Board:
                 for p in self.parts:
                     if i.pycoord[0]+x[0] == p.pycoord[0]:
                         if i.pycoord[1]+x[1] == p.pycoord[1]:
-                            bind = True
-                            break
+                            if i.allow[ticker.index(x)]:
+                                bind = True
+                                break
                 if bind:
                     break
             if not bind:
@@ -130,16 +132,7 @@ class Board:
             B.parts.remove(M.selected)
         for i in self.items:
             self.parts.remove(i)
-
-        #cockpit check
-        seat = False
-        for i in self.parts:
-            if i.sig == "cockpit":
-                seat = True
-                break
-        if not seat:
-            self.BuildmodeTransition()
-
+            
         #connected check
         if not self.ConnectedScan():
             self.BuildmodeTransition()
@@ -165,14 +158,19 @@ class Board:
                 trig = math.degrees(math.asin(x/i.hypotenuse))
 
                 orient = round(trig)
-                i.flightdeg += trig
-                
+                if y > 0:
+                    i.flightdeg += trig
+                else:
+                    if orient > 0:
+                        i.flightdeg += 90 - trig
+                    elif orient < 0:
+                        i.flightdeg += -90 - trig
                 if y < 0: 
                     if orient > 0:
                         i.flightdeg += 90
                     elif orient < 0:
                         i.flightdeg -= 90
-
+                
             else:
                 #for axes
                 if x > 0:
@@ -220,24 +218,25 @@ class Ship:
             if i.sig == "cockpit":
                 self.coord = copy.deepcopy(i.coord)
 
-        #accumulate turn speed
+        #accumulate values
         self.turnspeed = 0
+        self.strength = 0
+        self.m = 0
+        self.shield = 0
         for i in B.parts:
-            if i.sig == "gyro":
+            self.m += i.m #mass
+
+            if i.sig == "gyro": #turn speed
                 self.turnspeed += 1
 
-        #accumulate thrust
-        self.strength = 0
-        for i in B.parts:
-            if i.sig == "engine":
-                self.strength -= 1
+            if i.sig == "engine": #thrust
+                self.strength -= 5
 
-        #acumulate mass + coord
-        self.m = 0
-        for i in B.parts:
-            self.m += i.m
-            if i.sig == "cockpit":
+            if i.sig == "cockpit": #coord
                 self.coord = copy.deepcopy(i.coord)
+
+            if i.sig == "shield": #shield
+                self.shield += 1
 
         #engine
         self.on = pygame.image.load("images\\engine_on.png")
@@ -327,6 +326,7 @@ class Part:
         self.m = 10
         self.health = 10
         self.sig = False
+        self.allow = [True, True, True, True] #starts top, cycles clockwise
 
         #image
         self.blitimage = pygame.transform.rotate(self.image, self.deg)
@@ -334,7 +334,7 @@ class Part:
         self.height = self.image.get_width()
 
         #sound
-        self.liftsound = pygame.mixer.Sound("sounds\lift.wav")
+        self.liftsound = pygame.mixer.Sound("sounds\\lift.wav")
 
     def BuildShow(self):
         if self.held:
@@ -378,16 +378,15 @@ class Part:
 class Cockpit(Part):
     def __init__(self, held):
         #image
-        self.image = pygame.image.load("images\cockpit.png")
+        self.image = pygame.image.load("images\\cockpit.png")
 
         #sound
-        self.dropsound = [pygame.mixer.Sound("sounds\cockpit.wav")]
+        self.dropsound = [pygame.mixer.Sound("sounds\\cockpit.wav")]
 
         super().__init__(held)
         
         #gameplay
         self.sig = "cockpit"
-        self.deg = 1
 
 class Engine(Part):
     def __init__(self, held):
@@ -402,6 +401,7 @@ class Engine(Part):
         #gameplay
         self.deg = 1
         self.sig = "engine"
+        self.allow = [True, False, False, False]
 
 class Shield(Part):
     def __init__(self, held):
@@ -459,7 +459,10 @@ class Corner(Hull):
         self.image = pygame.image.load("images\\corner.png")
 
         super().__init__(held)
+
+        #gameplay
         self.cost = 25
+        self.allow = [False, False, True, True]
 
 class Concave(Hull):
     def __init__(self, held):
@@ -467,7 +470,10 @@ class Concave(Hull):
         self.image = pygame.image.load("images\\concave.png")
 
         super().__init__(held)
+
+        #gameplay
         self.cost = 25
+        self.allow = [False, True, True, True]
 
 class Convex(Hull):
     def __init__(self, held):
@@ -475,7 +481,10 @@ class Convex(Hull):
         self.image = pygame.image.load("images\\convex.png")
 
         super().__init__(held)
+
+        #gameplay
         self.cost = 25
+        self.allow = [False, False, True, False]
 
 
 class Gun(Part):
@@ -484,7 +493,16 @@ class Gun(Part):
         self.dropsound = [pygame.mixer.Sound("sounds\\gun.wav")]
 
         super().__init__(held)
+
+        #gameplay
+        self.sig = "gun"
         self.cost = 100
+        self.allow = [False, False, True, False]
+
+    def Fire(self):
+        for i in range(0,10):
+            B.particles.append(Particle(self.flightcoord, (214,245,246), 10))
+            B.particles[-1].deg = S.deg - 180 + self.deg
 
 class Cannon(Gun):
     def __init__(self, held):
@@ -541,18 +559,36 @@ class Mouse:
             #keys
             if event.type == pygame.KEYDOWN:
                 keys = pygame.key.get_pressed()
-                if keys[pygame.K_e]:
+                if keys[pygame.K_f]:
                     self.Delete()
                 if self.selected != False:
                     if self.selected.deg != 1:
                         if keys[pygame.K_a]:
-                            self.selected.image = pygame.transform.rotate(self.selected.image, 90)
-                            self.selected.deg += 90
+                            self.Rotate(True)
                         if keys[pygame.K_d]:
-                            self.selected.image = pygame.transform.rotate(self.selected.image, -90)
-                            self.selected.deg -= 90
-                if keys[pygame.K_SPACE]:
+                            self.Rotate(False)
+                if keys[pygame.K_q]:
                     B.FlightTransition()
+
+    def Rotate(self, left):
+        if left:
+            change = 90
+        else:
+            change = -90
+
+        #rotates image
+        self.selected.image = pygame.transform.rotate(self.selected.image, change)
+        self.selected.deg += change
+
+        #cycles allow
+        if left:
+            front = self.selected.allow[0]
+            self.selected.allow.pop(0)
+            self.selected.allow.append(front)
+        else:
+            back = self.selected.allow[-1]
+            self.selected.allow.pop(-1)
+            self.selected.allow.insert(0,back)
     
     def FlightInput(self):
         keys = pygame.key.get_pressed()
@@ -566,7 +602,7 @@ class Mouse:
             #key
             if event.type == pygame.KEYDOWN:
                 keys = pygame.key.get_pressed()
-                if keys[pygame.K_SPACE]:
+                if keys[pygame.K_q]:
                     B.BuildmodeTransition()
         if keys[pygame.K_w]:
             S.Active()
@@ -574,6 +610,10 @@ class Mouse:
             S.Turn(True)
         if keys[pygame.K_d]:
             S.Turn(False)
+        if keys[pygame.K_SPACE]:
+            for i in B.parts:
+                if i.sig == "gun":
+                    i.Fire()
 
     def FlightClickDOWN(self):
         #exit
