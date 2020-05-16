@@ -225,8 +225,6 @@ class Board:
 
         #arena check
         self.GenArena()
-        for i in self.stars:
-            i.ArenaCheck()
 
     def BuildmodeTransition(self):
         self.buildmode = True
@@ -255,6 +253,9 @@ class Board:
                 for i in ticker:
                     X, Y = self.arenacoord[0]+i[0]*x*300, self.arenacoord[1]+i[1]*y*300
                     self.stars.append(Star([X, Y]))
+        
+        for i in self.stars:
+            i.ArenaCheck()
 
     def Textbox(self):
         act = False
@@ -336,7 +337,6 @@ class Board:
         B.parts.append(Cockpit(False))
         B.parts[-1].Drop([B.width//2, B.height//2])
 
-    
 
 class Entity:
     def __init__(self):
@@ -568,19 +568,30 @@ class Ship(Entity):
     def Jump(self):
         for i in B.parts:
             for x in range(0, 5 -self.jumpdelay//10):
-                deg = S.deg + random.randint(-50,50)
+                deg = self.deg + random.randint(-50,50)
                 radians = math.radians(deg)
                 opp = 30 * math.sin(radians)
                 adj = 30 * math.cos(radians)
                 coord = [i.flightcoord[0]- opp, i.flightcoord[1]- adj] 
-                B.particlesabove.append(Particle(coord, (214,245,246), 50 -self.jumpdelay, True))
+                B.particlesabove.append(Particle(coord, (214,245,246), 25 -self.jumpdelay//2, True))
                 B.particlesabove[-1].deg = deg
         self.jumpdelay -= 1
 
         #arena check
-        B.GenArena()
-        for i in B.stars:
-            i.ArenaCheck()
+        if self.jumpdelay == 0:
+            B.GenArena()
+            deg = self.deg + 180
+            radians = math.radians(deg)
+            opp = (B.arenaradius - 300) * math.sin(radians)
+            adj = (B.arenaradius - 300) * math.cos(radians)
+
+            B.arenacoord = [B.arenacoord[0]+opp, B.arenacoord[1]+adj]
+
+            #reset suvat
+            self.F = [0,0]
+            self.u = [0,0]
+            self.a = [0,0]
+            self.s = [0,0]
 
 class Enemy(Entity):
     def __init__(self):
@@ -921,6 +932,8 @@ class Mouse:
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_q]:
                     B.BuildmodeTransition()
+                if keys[pygame.K_TAB]:
+                    S.jumpdelay = 50
         if keys[pygame.K_w]:
             S.Active()
         if keys[pygame.K_a]:
@@ -933,8 +946,6 @@ class Mouse:
                     if i.sig == "gun":
                         i.Fire()
                 S.firedelay = S.reload
-        if keys[pygame.K_TAB]:
-            S.jumpdelay = 50
 
     def FlightClickDOWN(self):
         #exit
@@ -1083,9 +1094,10 @@ while B.RUN:
         else:
             B.Textbox()
     else:
-        M.FlightInput()
         if S.jumpdelay > 0:
             S.Jump()
+        else:
+            M.FlightInput()
     
     #calc
     if not B.buildmode:
