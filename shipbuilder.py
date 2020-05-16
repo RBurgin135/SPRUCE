@@ -26,7 +26,9 @@ class Board:
         self.RUN = True
         self.ships = []
         self.parts = []
-        self.particles = []
+        self.stars = []
+        self.particlesabove = []
+        self.particlesbelow = []
         self.projectiles = []
         self.credits = 1000
 
@@ -44,7 +46,15 @@ class Board:
         self.items = [Engine(False), Cannon(False), Shield(False), Gyro(False), Block(False), Corner(False), Concave(False), Convex(False)]
         self.gap = 920 // len(self.items)
         self.BuildmodeTransition()
-        
+
+        #options
+        save = [scr_width-200, 0, 200, 100]
+        load = [scr_width-200, 100, 200, 100]
+        self.options = [save,load]
+        self.optionstitles = ["SAVE", "LOAD"]
+        self.optionsinput = False
+        self.textboxtext = ""
+
     def Show(self):
         #board
         if self.buildmode:
@@ -89,13 +99,40 @@ class Board:
                     else:
                         window.blit(Text, (item.coord[0]-10, item.coord[1]+30))
 
+            #options=======
+            #rectangle
+            for i in self.options:
+                pygame.draw.rect(window, (40,62,63), (i))
+                if (i[0] < M.coord[0] < i[0] + i[2]) and (i[1] < M.coord[1] < i[1] + i[3]):
+                    M.highlight = -self.options.index(i)-2
+                    pygame.draw.rect(window, (60,82,83), (i))
+                #text
+                OpFont = pygame.font.SysFont('', 25)
+                Text = OpFont.render(self.optionstitles[self.options.index(i)], False, (247,216,148))
+                window.blit(Text, (i[0]+i[2]//2-10, i[1]+i[3]//2))
             
+            #texbox
+            if self.optionsinput:
+                #line
+                l = self.options[-1]
+                pygame.draw.line(window, (247,216,148), (l[0], l[1]+l[3]+25), (l[0]+l[2], l[1]+l[3]+25))
+
+                #text
+                BoxFont = pygame.font.SysFont('', 20)
+                Text = OpFont.render(self.textboxtext, False, (247,216,148))
+                window.blit(Text, (self.options[-1][0], self.options[-1][1] + self.options[-1][3]))
 
             #Credits
             SubFont = pygame.font.SysFont('', 100)
             Text = SubFont.render("CR "+str(self.credits), False, (247,216,148))
             pygame.draw.rect(window, (60,82,83), (0, 0, self.BarWidth, 100))
             window.blit(Text,(10,10))
+
+        else:
+            #arena
+            pygame.draw.circle(window, (214,245,246), (int(self.arenacoord[0]), int(self.arenacoord[1])), int(self.arenaradius), 10)
+            for i in self.stars:
+                i.Show()
 
         #signature
         SigFont = pygame.font.SysFont('', 25)
@@ -115,9 +152,8 @@ class Board:
                 for p in self.parts:
                     if i.pycoord[0]+x[0] == p.pycoord[0]:
                         if i.pycoord[1]+x[1] == p.pycoord[1]:
-                            if i.allow[ticker.index(x)]:
-                                bind = True
-                                break
+                            bind = True
+                            break
                 if bind:
                     break
             if not bind:
@@ -187,8 +223,14 @@ class Board:
         global S
         S = Ship()
 
+        #arena check
+        self.GenArena()
+        for i in self.stars:
+            i.ArenaCheck()
+
     def BuildmodeTransition(self):
         self.buildmode = True
+        self.arenacoord = [scr_width//2, scr_height//2]
 
         #left bar
         self.showcase = []
@@ -202,16 +244,224 @@ class Board:
             i.coord = [x+self.BarWidth//2 , y+self.gap//2]
             self.showcase.append([x , y])
 
-class Ship:
+    def GenArena(self):
+        #arena
+        self.stars = []
+        self.arenacoord = [scr_width//2, scr_height//2]
+        self.arenaradius = 3000
+        ticker = [[-1,1],[1,-1],[-1,-1],[1,1]]
+        for x in range(0,10):
+            for y in range(0,10):
+                for i in ticker:
+                    X, Y = self.arenacoord[0]+i[0]*x*300, self.arenacoord[1]+i[1]*y*300
+                    self.stars.append(Star([X, Y]))
+
+    def Textbox(self):
+        act = False
+        for event in pygame.event.get():
+            #keys
+            if event.type == pygame.KEYDOWN:
+                keys = pygame.key.get_pressed()
+                if keys[pygame.K_RETURN]:
+                    act = True
+                elif keys[pygame.K_BACKSPACE]:
+                    self.textboxtext = self.textboxtext[:-1]
+                else:
+                    self.textboxtext+= event.unicode
+
+        #save + load
+        if act:
+            if self.optionsinput == "save":
+                self.Save(self.textboxtext)
+            elif self.optionsinput == "load":
+                self.Load(self.textboxtext)
+            self.optionsinput = False
+
+    def Load(self, name):
+        self.parts = []
+        #adds left bar
+        for i in self.items:
+            self.parts.append(i)
+
+        #adds cockpit
+        B.parts.append(Cockpit(False))
+        B.parts[-1].Drop([B.width//2, B.height//2])
+        try:
+            f = open(name+".txt", "r")
+
+            #cycles the data
+            signatures = ["engine", "gun", "shield", "gyro", "block", "corner", "concave", "convex"]
+
+            for line in f:
+                items = [Engine(False), Cannon(False), Shield(False), Gyro(False), Block(False), Corner(False), Concave(False), Convex(False)]
+                chunks = line.split(",")
+
+                x = signatures.index(chunks[0])
+
+                #new part
+                self.parts.append(items[x])
+                self.parts[-1].Drop([int(chunks[1]), int(chunks[2])])
+                self.parts[-1].deg = int(chunks[3])
+                #rotates image
+                if self.parts[-1].deg != 1:
+                    self.parts[-1].image = pygame.transform.rotate(self.parts[-1].image, self.parts[-1].deg)
+
+            f.close()
+        except:
+            FileNotFoundError
+
+    def Save(self, name):
+        #removes left bar
+        for i in self.items:
+            self.parts.remove(i)
+        
+        #removes cockpit
+        for i in self.parts:
+            if i.sig == "cockpit":
+                self.parts.remove(i)
+                break
+
+        f = open(name+".txt", "w")
+        
+        for i in self.parts:
+            f.write(i.sig+","+str(i.pycoord[0])+","+str(i.pycoord[1])+","+str(i.deg)+"\n")
+
+        f.close()
+
+        #adds left bar
+        for i in self.items:
+            self.parts.append(i)
+
+        #adds cockpit
+        B.parts.append(Cockpit(False))
+        B.parts[-1].Drop([B.width//2, B.height//2])
+
+    
+
+class Entity:
     def __init__(self):
         #suvat
-        self.F = [0,0] 
+        self.F = [0,0]
         self.u = [0,0]
         self.a = [0,0]
         self.s = [0,0]
 
         #other variables
         self.deg = 0
+        self.hypotenuse = 0
+
+    def Calculate(self):
+        self.BoundaryCheck()
+        Resultant_F = []
+        #find resultant force in axis (F=ma)
+        Resultant_F.append(self.F[0]) 
+        Resultant_F.append(self.F[1])
+
+        for i in range (0,2):
+            #find acceleration on axis
+            self.a[i] = 0
+            if Resultant_F[i] != 0:
+                self.a[i] =  Resultant_F[i] / self.m
+
+            #find displacement on axis (s = ut- 1/2 at^2)
+            self.s[i] = self.u[i] - 0.5*self.a[i]
+
+        self.Displace()
+
+class Projectile(Entity):
+    def __init__(self, coord, u, deg):
+        #inheritance
+        super().__init__()
+        self.u = u
+        self.deg = deg
+
+        #images
+        self.coord = coord
+        self.image = pygame.image.load("images\\projectile.png")
+        self.width = self.image.get_width()
+        self.height = self.image.get_height()
+        self.rect = pygame.Rect(self.coord[0],self.coord[1],self.width,self.height)
+
+        #gameplay
+        self.m = 5
+        self.Launch()
+        self.delay = 10
+    
+    def Launch(self):
+        self.strength = 100
+
+        #pythagoras
+        radians = math.radians(self.deg)
+        opp = self.strength * math.sin(radians)
+        adj = self.strength * math.cos(radians)
+        self.F[0] = -opp
+        self.F[1] = adj
+
+    def Show(self):
+        #delete slow projectiles
+        if self.delay > 0:
+            self.delay -= 1
+        elif self.u[0] < 1 and self.u[1] < 1 and self.u[0] > -1 and self.u[1] > -1:
+            B.projectiles.remove(self)
+
+        #blit
+        blitimage = pygame.transform.rotate(self.image, self.deg)
+        self.width = blitimage.get_width()
+        self.height = blitimage.get_height()
+        blit = [self.coord[0] - self.width//2,self.coord[1] - self.height//2]
+
+        #rect
+        self.rect = pygame.Rect(self.coord[0],self.coord[1],self.width,self.height)
+
+        #write
+        window.blit(blitimage,(blit[0] , blit[1]))
+
+    def Displace(self):
+        self.coord[0] -= self.s[0]
+        self.coord[1] += self.s[1]
+    
+    def Reset(self):
+        #find velocity used in next Calculate (v = u + at)
+        for i in range (0,2):
+            self.u[i] = self.u[i] + self.a[i]
+            self.u[i] *= 0.996
+
+            #reset values
+            self.F[i] = 0
+
+    def BoundaryCheck(self):
+        x = self.coord[0] - B.arenacoord[0] 
+        y = self.coord[1] - B.arenacoord[1] 
+        self.hypotenuse = math.sqrt(x**2 + y**2)
+
+        if self.hypotenuse > B.arenaradius:
+            B.projectiles.remove(self)
+
+    def Impact(self):
+        for i in B.parts:
+            if self.rect.colliderect(i.rect) and self.delay <= 0:
+                if S.shield > 0:
+                    pygame.mixer.Sound.play(i.brek)
+                    S.shield -= 1
+                    S.shielddelay = 200
+                else:
+                    i.health -= 1
+                    if i.health <= 0:
+                        i.image = i.dead
+                for i in range(0,2):
+                    #finds momentum
+                    self.p = self.m * self.u[i]
+                    S_p = S.m * S.u[i]
+                    #combines momentum
+                    totalp = self.p + S_p
+                    #finds u
+                    S.u[i] = totalp / S.m
+                B.projectiles.remove(self)
+
+class Ship(Entity):
+    def __init__(self):
+        #inheritance
+        super().__init__()
 
         #find CP
         for i in B.parts:
@@ -242,28 +492,23 @@ class Ship:
         self.on = pygame.image.load("images\\engine_on.png")
         self.off = pygame.image.load("images\\engine_off.png")
 
-    def Calculate(self):
-        #self.BoundaryCheck()
-        Resultant_F = []
-        #find resultant force in axis (F=ma)
-        Resultant_F.append(self.F[0]) 
-        Resultant_F.append(self.F[1])
+        #gameplay
+        self.jumpdelay = 0
+        self.firedelay = 0
+        self.reload = 10
 
-        for i in range (0,2):
-            #find acceleration on axis
-            self.a[i] = 0
-            if Resultant_F[i] != 0:
-                self.a[i] =  Resultant_F[i] / self.m
-
-            #find displacement on axis (s = ut- 1/2 at^2)
-            self.s[i] = self.u[i] - 0.5*self.a[i]
-
-        #displace
-        self.coord[0] -= self.s[0]
-        self.coord[1] += self.s[1]
-        for i in B.parts:
-            i.flightcoord[0] -= self.s[0]
-            i.flightcoord[1] += self.s[1]
+    def Displace(self):
+        B.arenacoord[0] += self.s[0]
+        B.arenacoord[1] -= self.s[1]
+        for i in B.stars:
+            i.coord[0] += self.s[0]
+            i.coord[1] -= self.s[1]
+        for i in B.particlesbelow:
+            i.coord[0] += self.s[0]
+            i.coord[1] -= self.s[1]
+        for i in B.projectiles:
+            i.coord[0] += self.s[0]
+            i.coord[1] -= self.s[1]
 
     def Reset(self):
         #find velocity used in next Calculate (v = u + at)
@@ -284,6 +529,9 @@ class Ship:
         for i in B.parts:
             if i.sig == "engine":
                 i.image = self.on
+                for x in range(0,3):
+                    B.particlesbelow.append(Particle(i.flightcoord, (214,245,246), 10, False))
+                    B.particlesbelow[-1].deg = S.deg + i.deg + random.randint(-50,50)
 
         thrust = self.strength
 
@@ -307,6 +555,38 @@ class Ship:
                 i.flightdeg += change
                 i.Displace()
 
+    def BoundaryCheck(self):
+        x = self.coord[0] - B.arenacoord[0] 
+        y = self.coord[1] - B.arenacoord[1] 
+        self.hypotenuse = math.sqrt(x**2 + y**2)
+
+        if self.hypotenuse > B.arenaradius:
+            for i in range(0, 2):
+                self.u[i] = -self.u[i]
+                self.a[i] = -self.a[i]
+
+    def Jump(self):
+        for i in B.parts:
+            for x in range(0, 5 -self.jumpdelay//10):
+                deg = S.deg + random.randint(-50,50)
+                radians = math.radians(deg)
+                opp = 30 * math.sin(radians)
+                adj = 30 * math.cos(radians)
+                coord = [i.flightcoord[0]- opp, i.flightcoord[1]- adj] 
+                B.particlesabove.append(Particle(coord, (214,245,246), 50 -self.jumpdelay, True))
+                B.particlesabove[-1].deg = deg
+        self.jumpdelay -= 1
+
+        #arena check
+        B.GenArena()
+        for i in B.stars:
+            i.ArenaCheck()
+
+class Enemy(Entity):
+    def __init__(self):
+        pass
+    def Ai(self):
+        pass
 
 class Part:
     def __init__(self, held):
@@ -324,14 +604,17 @@ class Part:
         self.deg = 0
         self.cost = 50
         self.m = 10
-        self.health = 10
-        self.sig = False
+        self.health = 3
         self.allow = [True, True, True, True] #starts top, cycles clockwise
-
+        
         #image
+        self.dead = pygame.image.load("images\\dead.png")
         self.blitimage = pygame.transform.rotate(self.image, self.deg)
         self.width = self.image.get_height()
         self.height = self.image.get_width()
+
+        #rect
+        self.rect = pygame.Rect(self.coord[0],self.coord[1],self.width,self.height)
 
         #sound
         self.liftsound = pygame.mixer.Sound("sounds\\lift.wav")
@@ -343,16 +626,17 @@ class Part:
         window.blit(self.image, blit)
 
     def FlightShow(self):
-        #dim
-        self.width = self.blitimage.get_width()
-        self.height = self.blitimage.get_height()
-
         #blit
-        self.blitimage = pygame.transform.rotate(self.image, S.deg)
+        blitimage = pygame.transform.rotate(self.image, S.deg)
+        self.width = blitimage.get_width()
+        self.height = blitimage.get_height()
         blit = [self.flightcoord[0] - self.width//2,self.flightcoord[1] - self.height//2]
 
+        #rect
+        self.rect = pygame.Rect(self.flightcoord[0]- self.width//2 ,self.flightcoord[1] - self.height//2,self.width,self.height)
+
         #write
-        window.blit(self.blitimage,(blit[0] , blit[1]))
+        window.blit(blitimage,(blit[0] , blit[1]))
 
     def Displace(self):
         rad = math.radians(self.flightdeg)
@@ -410,6 +694,7 @@ class Shield(Part):
 
         #sounds
         self.dropsound = [pygame.mixer.Sound("sounds\\shield_regen.wav")]
+        self.brek = pygame.mixer.Sound("sounds\\shield_break.wav")
 
         super().__init__(held)
 
@@ -443,6 +728,9 @@ class Hull(Part):
 
         super().__init__(held)
 
+        #gameplay
+        self.health = 8
+
 class Block(Hull):
     def __init__(self, held):
         #image
@@ -451,6 +739,7 @@ class Block(Hull):
         super().__init__(held)
 
         #gameplay
+        self.sig = "block"
         self.deg = 1
 
 class Corner(Hull):
@@ -461,6 +750,7 @@ class Corner(Hull):
         super().__init__(held)
 
         #gameplay
+        self.sig = "corner"
         self.cost = 25
         self.allow = [False, False, True, True]
 
@@ -472,6 +762,7 @@ class Concave(Hull):
         super().__init__(held)
 
         #gameplay
+        self.sig = "concave"
         self.cost = 25
         self.allow = [False, True, True, True]
 
@@ -483,6 +774,7 @@ class Convex(Hull):
         super().__init__(held)
 
         #gameplay
+        self.sig = "convex"
         self.cost = 25
         self.allow = [False, False, True, False]
 
@@ -491,6 +783,7 @@ class Gun(Part):
     def __init__(self, held):
         #sound
         self.dropsound = [pygame.mixer.Sound("sounds\\gun.wav")]
+        self.pew = pygame.mixer.Sound("sounds\\bit.wav")
 
         super().__init__(held)
 
@@ -500,9 +793,9 @@ class Gun(Part):
         self.allow = [False, False, True, False]
 
     def Fire(self):
-        for i in range(0,10):
-            B.particles.append(Particle(self.flightcoord, (214,245,246), 10))
-            B.particles[-1].deg = S.deg - 180 + self.deg
+        pygame.mixer.Sound.play(self.pew)
+        deg = S.deg + self.deg + 180
+        B.projectiles.append(Projectile(copy.deepcopy(self.flightcoord), copy.deepcopy(S.u), deg))
 
 class Cannon(Gun):
     def __init__(self, held):
@@ -513,7 +806,8 @@ class Cannon(Gun):
 
 
 class Particle:
-    def __init__(self, coord, colour, vel):
+    def __init__(self, coord, colour, vel, above):
+        self.above = above
         self.coord = copy.deepcopy(coord)
         self.deg = random.randint(0, 360)
         self.vel = random.uniform(1, vel)
@@ -534,7 +828,26 @@ class Particle:
             self.deg += random.randint(-10,10)
         self.vel -= .1
         if self.vel <= 0:
-            B.particles.remove(self)
+            if self.above:
+                B.particlesabove.remove(self)
+            else:
+                B.particlesbelow.remove(self)
+
+class Star:
+    def __init__(self, coord):
+        self.coord = [coord[0]+random.randint(-100,100), coord[1]+random.randint(-100,100)]
+        
+    def ArenaCheck(self):
+        #arena check
+        x = self.coord[0] - B.arenacoord[0]
+        y = self.coord[1] - B.arenacoord[1]
+        hypotenuse = math.sqrt(x**2 + y**2)
+
+        #if hypotenuse < B.arenaradius:
+        #    B.stars.remove(self)
+        
+    def Show(self):
+        pygame.draw.circle(window, (214,245,246), (int(self.coord[0]), int(self.coord[1])), 3, 0)
 
 class Mouse:
     def __init__(self):
@@ -591,6 +904,10 @@ class Mouse:
             self.selected.allow.insert(0,back)
     
     def FlightInput(self):
+        #reload
+        if S.firedelay > 0:
+            S.firedelay -= 1
+
         keys = pygame.key.get_pressed()
         for event in pygame.event.get():
             #mouse
@@ -611,9 +928,13 @@ class Mouse:
         if keys[pygame.K_d]:
             S.Turn(False)
         if keys[pygame.K_SPACE]:
-            for i in B.parts:
-                if i.sig == "gun":
-                    i.Fire()
+            if S.firedelay == 0:
+                for i in B.parts:
+                    if i.sig == "gun":
+                        i.Fire()
+                S.firedelay = S.reload
+        if keys[pygame.K_TAB]:
+            S.jumpdelay = 50
 
     def FlightClickDOWN(self):
         #exit
@@ -622,7 +943,7 @@ class Mouse:
 
         #effects
         for i in range(0,25):
-            B.particles.append(Particle(self.coord, (214,245,246), 3))
+            B.particlesabove.append(Particle(self.coord, (214,245,246), 3, True))
 
     def Coordfinder(self):
         #finds coords on board
@@ -652,7 +973,7 @@ class Mouse:
 
         #effects
         for i in range(0,25):
-            B.particles.append(Particle(self.coord, (214,245,246), 3))
+            B.particlesabove.append(Particle(self.coord, (214,245,246), 3, True))
 
         #generate
         if self.found:
@@ -687,7 +1008,15 @@ class Mouse:
             elif self.highlight == 7:
                 B.parts.append(Convex(True))
                 self.selected = B.parts[-1]
-            
+
+            #options
+            elif self.highlight == -2:
+                B.textboxtext = ""
+                B.optionsinput = "save"
+            elif self.highlight == -3:
+                B.textboxtext = ""
+                B.optionsinput = "load"
+
             #credits + sound
             if self.selected != False:
                 #credits
@@ -697,7 +1026,7 @@ class Mouse:
                 
                 #sound
                 pygame.mixer.Sound.play(self.selected.liftsound)
-            
+        
     def BuildClickUP(self):
         self.Coordfinder()
 
@@ -729,7 +1058,7 @@ class Mouse:
             if i.pycoord == self.pycoord and i.sig != "cockpit":
                 #effects
                 for p in range(0,50):
-                    B.particles.append(Particle(i.coord, (116,116,116), 5))
+                    B.particlesabove.append(Particle(i.coord, (116,116,116), 5, True))
 
                 B.credits += i.cost
                 B.parts.remove(i)
@@ -749,27 +1078,41 @@ while B.RUN:
 
     #input
     if B.buildmode:
-        M.BuildInput()
+        if not B.optionsinput:
+            M.BuildInput()
+        else:
+            B.Textbox()
     else:
         M.FlightInput()
+        if S.jumpdelay > 0:
+            S.Jump()
     
     #calc
     if not B.buildmode:
         S.Calculate()
-    
+        for i in B.projectiles:
+            i.Calculate()
+            i.Impact()
+
     #show
     B.Show()
+    for i in B.particlesbelow:
+        i.Show()
     if B.buildmode: 
         for i in B.parts:
             i.BuildShow()
     else:
+        for i in B.projectiles:
+            i.Show()
         for i in B.parts:
             i.FlightShow()
-    for i in B.particles:
+    for i in B.particlesabove:
         i.Show()
 
     #reset
     if not B.buildmode:
         S.Reset()
+        for i in B.projectiles:
+            i.Reset()
     
     pygame.display.update()
