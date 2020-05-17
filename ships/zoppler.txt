@@ -1,0 +1,17 @@
+corner,6,6,0
+corner,6,7,-90
+corner,4,7,180
+gyro,5,9,1
+shield,5,8,1
+block,5,6,1
+gun,6,8,-90
+gun,6,9,-90
+gun,4,9,-270
+gun,4,8,90
+corner,4,10,90
+corner,6,10,0
+engine,5,10,1
+convex,4,11,180
+convex,6,11,-180
+engine,5,11,1
+corner,4,6,90
