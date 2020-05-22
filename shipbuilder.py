@@ -336,11 +336,16 @@ class Mouse:
                     if i.sig == "cannon":
                         i.Fire()
                 S.firedelay = S.reload
+        if keys[pygame.K_RETURN]:
+            if S.dead:
+                B.RUN = False
 
     def FlightClickDOWN(self):
         #exit
         if self.coord[0] > scr_width-50 and self.coord[0] < scr_width and self.coord[1] < scr_height and self.coord[1] > scr_height-50:
             B.RUN = False
+            global RESPAWN
+            RESPAWN = False
 
         #effects
         for i in range(0,25):
@@ -371,6 +376,8 @@ class Mouse:
         #exit
         if self.coord[0] > scr_width-50 and self.coord[0] < scr_width and self.coord[1] < scr_height and self.coord[1] > scr_height-50:
             B.RUN = False
+            global RESPAWN
+            RESPAWN = False
 
         #effects
         for i in range(0,25):
@@ -599,6 +606,7 @@ class Ship(Entity):
     def __init__(self):
         #inheritance
         self.sig = "player"
+        self.dead = False
         super().__init__()
 
         #sounds
@@ -1076,7 +1084,11 @@ class Part:
             if len(ship.parts) == 0 or self.sig == "cockpit":
                 for i in ship.parts:
                     i.Dead(False, jump)
-                B.ships.remove(ship)
+                
+                if ship.sig == "player":
+                    ship.dead = True
+                else:
+                    B.ships.remove(ship)
             ship.Accumulate()
 
         if not jump:
@@ -1424,76 +1436,79 @@ def PauseScreen():
                         
         pygame.display.update()
 
-M = Mouse()
-B = Board()
-S = Ship()
-B.ships.append(S)
-B.garage = Garage()
-#cockpit
-S.parts.append(Cockpit(False))
-S.parts[-1].Drop([B.width//2, B.height//2])
+global RESPAWN
+RESPAWN = True
+while RESPAWN:
+    M = Mouse()
+    B = Board()
+    S = Ship()
+    B.ships.append(S)
+    B.garage = Garage()
+    #cockpit
+    S.parts.append(Cockpit(False))
+    S.parts[-1].Drop([B.width//2, B.height//2])
 
-TitleScreen()
-while B.RUN:
-    pygame.time.delay(1)
-    window.fill((33,44,48))
-    #input
-    if B.buildmode:
-        if not B.optionsinput:
-            M.BuildInput()
+    TitleScreen()
+    while B.RUN:
+        pygame.time.delay(1)
+        window.fill((33,44,48))
+        #input
+        if B.buildmode:
+            if not B.optionsinput:
+                M.BuildInput()
+            else:
+                B.Textbox()
         else:
-            B.Textbox()
-    else:
-        if S.jumpdelay > 0:
-            S.Jump()
-        else:
-            M.FlightInput()
-        for x in B.ships:
-            if x.sig != "player":
-                x.Ai()
-    
-    #calc
-        for x in B.ships:
-            x.Calculate()
-        for i in B.projectiles:
-            i.Calculate()
-            i.Impact()
-        for i in B.broken:
-            i.Calculate()
-
-    #show
-    B.Show()
-    
-    for i in B.particlesbelow:
-        i.Show()
-    if B.buildmode: 
-        for i in S.parts:
-            i.BuildShow()
-        for i in B.items:
-            i.BuildShow()
-    else:
-        if B.garage != False:
-            B.garage.Show()
-        for i in B.broken:
-            i.Show()
-        for i in B.projectiles:
-            i.Show()
-        for x in B.ships:
-            for i in x.parts:
-                i.FlightShow(x)
-        for i in B.explosions:
-            i.Show()
+            if S.jumpdelay > 0:
+                S.Jump()
+            else:
+                M.FlightInput()
+            for x in B.ships:
+                if x.sig != "player":
+                    x.Ai()
         
-    for i in B.particlesabove:
-        i.Show()
+        #calc
+            for x in B.ships:
+                x.Calculate()
+            for i in B.projectiles:
+                i.Calculate()
+                i.Impact()
+            for i in B.broken:
+                i.Calculate()
 
-    #reset
-    if not B.buildmode:
-        for x in B.ships:
-            x.Reset()
-        for i in B.projectiles:
-            i.Reset()
-        for i in B.broken:
-            i.Reset()
-    
-    pygame.display.update()
+        #show
+        B.Show()
+        
+        for i in B.particlesbelow:
+            i.Show()
+        if B.buildmode: 
+            for i in S.parts:
+                i.BuildShow()
+            for i in B.items:
+                i.BuildShow()
+        else:
+            if B.garage != False:
+                B.garage.Show()
+            for i in B.broken:
+                i.Show()
+            for i in B.projectiles:
+                i.Show()
+            for x in B.ships:
+                for i in x.parts:
+                    i.FlightShow(x)
+            for i in B.explosions:
+                i.Show()
+            
+        for i in B.particlesabove:
+            i.Show()
+
+        #reset
+        if not B.buildmode:
+            for x in B.ships:
+                x.Reset()
+            for i in B.projectiles:
+                i.Reset()
+            for i in B.broken:
+                i.Reset()
+        
+        pygame.display.update()
