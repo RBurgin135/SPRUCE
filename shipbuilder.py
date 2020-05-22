@@ -320,22 +320,24 @@ class Mouse:
                             for i in S.parts:
                                 i.health == i.maxhealth
                             B.BuildmodeTransition()
-                if keys[pygame.K_TAB]:
-                    S.jumpdelay = 50
-                if keys[pygame.K_ESCAPE]:
-                    PauseScreen()
-        if keys[pygame.K_w]:
-            S.Active()
-        if keys[pygame.K_a]:
-            S.Turn(True)
-        if keys[pygame.K_d]:
-            S.Turn(False)
-        if keys[pygame.K_SPACE]:
-            if S.firedelay == 0:
-                for i in S.parts:
-                    if i.sig == "cannon":
-                        i.Fire()
-                S.firedelay = S.reload
+                if not S.dead:
+                    if keys[pygame.K_TAB]:
+                        S.jumpdelay = 50
+                    if keys[pygame.K_ESCAPE]:
+                        PauseScreen()
+        if not S.dead:
+            if keys[pygame.K_w]:
+                S.Active()
+            if keys[pygame.K_a]:
+                S.Turn(True)
+            if keys[pygame.K_d]:
+                S.Turn(False)
+            if keys[pygame.K_SPACE]:
+                if S.firedelay == 0:
+                    for i in S.parts:
+                        if i.sig == "cannon":
+                            i.Fire()
+                    S.firedelay = S.reload
         if keys[pygame.K_RETURN]:
             if S.dead:
                 B.RUN = False
