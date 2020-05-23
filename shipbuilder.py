@@ -242,7 +242,7 @@ class Board:
             if self.optionsinput == "save":
                 S.Save(self.textboxtext)
             elif self.optionsinput == "load":
-                S.Load(self.textboxtext)
+                S.Load(self.textboxtext, False)
             self.optionsinput = False
 
 class Mouse:
@@ -812,7 +812,7 @@ class Ship(Entity):
                 B.garage = False
                 B.ships.append(Enemy(deg + random.randint(-80,80)))
 
-    def Load(self, name):
+    def Load(self, name, big):
         #resets parts
         Remove = []
         for i in self.parts:
@@ -826,7 +826,7 @@ class Ship(Entity):
             self.parts.remove(i)
 
         try:
-            f = open("ships\\"+name+".txt", "r")
+            f = open(("big"*big)+"ships\\"+name+".txt", "r")
 
             #cycles the data
             signatures = ["engine", "cannon", "shield", "gyro", "block", "corner", "concave", "convex"]
@@ -878,9 +878,17 @@ class Enemy(Ship):
         self.parts[-1].Drop([scr_width//2, scr_height//2])
         
         #find blueprint
-        blue = random.choice(os.listdir("ships\\"))
+        score = B.credits
+        for i in S.parts:
+            score += i.cost
+        if score > 2500 and random.randint(0,5) == 0:
+            blue = random.choice(os.listdir("bigships\\"))
+            big = True
+        else:
+            blue = random.choice(os.listdir("ships\\"))
+            big = False
         blue = blue[:-4]
-        self.Load(blue)
+        self.Load(blue, big)
 
         #calibrates parts
         self.Calibrate()
