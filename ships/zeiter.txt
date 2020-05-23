@@ -1,0 +1,17 @@
+corner,6,6,-90
+corner,4,6,180
+corner,3,7,180
+corner,7,7,-90
+engine,4,7,1
+engine,6,7,1
+gyro,5,5,1
+gyro,5,6,1
+cannon,4,4,0
+cannon,6,4,0
+convex,4,5,180
+convex,6,5,180
+engine,5,9,1
+corner,4,8,-90
+corner,6,8,180
+concave,5,8,180
+725

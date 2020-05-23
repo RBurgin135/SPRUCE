@@ -127,8 +127,8 @@ class Board:
                 pygame.draw.line(window, (247,216,148), (l[0], l[1]+l[3]+25), (l[0]+l[2], l[1]+l[3]+25))
 
                 #text
-                BoxFont = pygame.font.SysFont('', 20)
-                Text = OpFont.render(self.textboxtext, False, (247,216,148))
+                BoxFont = pygame.font.SysFont('', 25)
+                Text = BoxFont.render(self.textboxtext, False, (247,216,148))
                 window.blit(Text, (self.options[-1][0], self.options[-1][1] + self.options[-1][3]))
 
         else:
@@ -136,6 +136,7 @@ class Board:
             pygame.draw.circle(window, (214,245,246), (int(self.arenacoord[0]), int(self.arenacoord[1])), int(self.arenaradius), 10)
             for i in self.stars:
                 i.Show()
+
 
         #Credits
         SubFont = pygame.font.SysFont('', 100)
@@ -570,10 +571,11 @@ class Projectile(Entity):
                     if self.rect.colliderect(i.rect):
                         if x.shield > 0:
                             x.shield -= 1
-                            for y in x.parts:
-                                if y.sig == "shield" and y.image == y.on:
-                                    y.Break()
-                                    break
+                            if x.shield % 5 == 0:
+                                for y in x.parts:
+                                    if y.sig == "shield" and y.image == y.on:
+                                        y.Break()
+                                        break
 
                         else:
                             i.health -= 1
@@ -690,7 +692,7 @@ class Ship(Entity):
                 self.strength -= 10
 
             if i.sig == "shield": #shield
-                self.maxshield += 1
+                self.maxshield += 5
 
     def Displace(self):
         if B.garage != False:
@@ -1438,6 +1440,21 @@ def PauseScreen():
                         
         pygame.display.update()
 
+def ScoreBox():
+    #worth 
+    pygame.draw.rect(window, (40,62,63), (scr_width//2-200, scr_height//2-100, 400,200))
+
+    #subtitle
+    SubFont = pygame.font.SysFont('', 50)
+    Text = SubFont.render("CREDITS", False, (247,216,148))
+    window.blit(Text, (scr_width//2-200, scr_height//2-90))
+
+    #score
+    ScoreFont = pygame.font.SysFont('', 200)
+    Text = ScoreFont.render(str(B.credits), False, (201,115,81))
+    window.blit(Text, (scr_width//2-180, scr_height//2-50))
+
+
 global RESPAWN
 RESPAWN = True
 while RESPAWN:
@@ -1500,6 +1517,8 @@ while RESPAWN:
                     i.FlightShow(x)
             for i in B.explosions:
                 i.Show()
+            if S.dead:
+                ScoreBox()
             
         for i in B.particlesabove:
             i.Show()
