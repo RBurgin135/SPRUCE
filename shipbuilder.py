@@ -762,6 +762,10 @@ class Ship(Entity):
             change = -self.turnspeed
 
         self.deg += change
+        if self.deg > 360:
+            self.deg -= 360
+        elif self.deg < 0:
+            self.deg += 360
 
         for i in self.parts:
             if i.sig != "cockpit":
@@ -928,60 +932,40 @@ class Enemy(Ship):
     def Movement(self):
         #forward
         Forward = False
-        x = self.coord[0] - S.coord[0] 
-        y = self.coord[1] - S.coord[1] 
+        x = S.coord[0] - self.coord[0] 
+        y = S.coord[1] - self.coord[1] 
         hypotenuse = math.sqrt(x**2 + y**2)
 
         if hypotenuse > 300:
             Forward = True
 
-        #left
+        #turn
         Turn = [False, False]
-        deg = 0
-        if hypotenuse != 0:
-            #for any diagonals
-            trig = math.degrees(math.asin(x/hypotenuse))
+        trig = math.degrees(math.asin(x/hypotenuse))
+        orient = round(trig)
+        deg = 180
 
-            orient = round(trig)
-            if y > 0:
-                deg += trig
-            else:
-                if orient > 0:
-                    deg += 90 - trig
-                elif orient < 0:
-                    deg += -90 - trig
-            if y < 0: 
-                if orient > 0:
-                    deg += 90
-                elif orient < 0:
-                    deg -= 90
-            
+        if y > 0:
+            deg += trig
         else:
-            #for axes
-            if x > 0:
+            if orient > 0:
+                deg += 90 - trig
+            elif orient < 0:
+                deg += -90 - trig
+        if y < 0: 
+            if orient > 0:
                 deg += 90
-            elif x < 0:
-                deg += -90
-            elif y < 0:
-                deg += 180
+            elif orient < 0:
+                deg -= 90
+            else:
+                deg = 180
 
-        while not 180 >= self.deg >= -180:
-            if self.deg < -180:
-                self.deg += 360
-            elif self.deg > 180:
-                self.deg -= 360
-        if Forward:
-            if self.deg < deg:
-                Turn[0] = True
-            elif self.deg > deg:
-                Turn[1] = True
-        else:
-            if self.deg > deg:
-                Turn[0] = True
-            elif self.deg < deg:
-                Turn[1] = True
-        
-
+        rad = math.radians(self.deg - deg)
+        opp = math.sin(rad)
+        if opp < 0:
+            Turn[0] = True
+        elif opp > 0:
+            Turn[1] = True
 
         self.verdict = [Forward, Turn[0], Turn[1]]
 
@@ -1442,9 +1426,9 @@ def PauseScreen():
         
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
-                    keys = pygame.key.get_pressed()
-                    if keys[pygame.K_ESCAPE]:
-                        loop = False
+                keys = pygame.key.get_pressed()
+                if keys[pygame.K_ESCAPE]:
+                    loop = False
                         
         pygame.display.update()
 
