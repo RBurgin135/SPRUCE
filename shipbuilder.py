@@ -36,6 +36,7 @@ class Board:
         self.explosions = []
         self.broken = []
         self.credits = 1000
+        self.score = 0
 
         #arena
         self.arenacoord = [scr_width//2, scr_height//2]
@@ -320,6 +321,8 @@ class Mouse:
                         if B.garage.dock:
                             for i in S.parts:
                                 i.health == i.maxhealth
+                                if i.sig == "shield":
+                                    i.image = i.on
                             B.BuildmodeTransition()
                 if not S.dead:
                     if keys[pygame.K_TAB]:
@@ -782,11 +785,7 @@ class Ship(Entity):
                 coord = [i.flightcoord[0]- opp, i.flightcoord[1]- adj] 
                 B.particlesabove.append(Particle(coord, (255,255,255), 25 -self.jumpdelay//2, True))
                 B.particlesabove[-1].deg = deg
-            
-            #shield
-            if i.sig == "shield":
-                i.image = i.on
-        self.shield = self.maxshield
+        
         self.jumpdelay -= 1
 
         #arena check
@@ -801,6 +800,13 @@ class Ship(Entity):
             B.arenacoord = [scr_width//2, scr_height//2]
             B.arenacoord = [B.arenacoord[0]+opp, B.arenacoord[1]+adj]
             B.GenArena()
+
+            #score
+            score = B.credits
+            for i in S.parts:
+                score += i.cost
+            if score > B.score:
+                B.score = score
             
 
             #enemy + garage
@@ -885,7 +891,7 @@ class Enemy(Ship):
         score = B.credits
         for i in S.parts:
             score += i.cost
-        if score > 2500 and random.randint(0,5) == 0:
+        if score > 2500:
             blue = random.choice(os.listdir("bigships\\"))
             big = True
         else:
@@ -1021,6 +1027,7 @@ class Part:
         self.cost = 50
         self.m = 50
         self.maxhealth = 3
+        self.health = self.maxhealth
         self.allow = [True, True, True, True] #starts top, cycles clockwise
         
         #image
@@ -1105,7 +1112,7 @@ class Cockpit(Part):
         super().__init__(held)
         
         #gameplay
-        self.health = self.maxhealth
+        
         self.sig = "cockpit"
 
 class Engine(Part):
@@ -1121,7 +1128,6 @@ class Engine(Part):
         super().__init__(held)
         
         #gameplay
-        self.health = self.maxhealth
         self.deg = 1
         self.sig = "engine"
         self.allow = [True, False, False, False]
@@ -1140,7 +1146,6 @@ class Shield(Part):
         super().__init__(held)
 
         #gameplay
-        self.health = self.maxhealth
         self.cost = 200
         self.m = 50
         self.sig = "shield"
@@ -1161,7 +1166,6 @@ class Gyro(Part):
         super().__init__(held)
 
         #gameplay
-        self.health = self.maxhealth
         self.sig = "gyro"
         self.deg = 1
 
@@ -1236,7 +1240,6 @@ class Gun(Part):
         super().__init__(held)
 
         #gameplay
-        self.health = self.maxhealth
         self.cost = 100
         self.allow = [False, False, True, False]
 
@@ -1438,12 +1441,17 @@ def ScoreBox():
 
     #subtitle
     SubFont = pygame.font.SysFont('', 50)
-    Text = SubFont.render("CREDITS", False, (247,216,148))
+    Text = SubFont.render("SCORE", False, (247,216,148))
     window.blit(Text, (scr_width//2-200, scr_height//2-90))
+    
+    #retry
+    SubFont = pygame.font.SysFont('', 20)
+    Text = SubFont.render('PRESS ENTER TO RETRY', False, (255,255,255))
+    window.blit(Text,(scr_width/2-90,scr_height/2+110))
 
     #score
     ScoreFont = pygame.font.SysFont('', 200)
-    Text = ScoreFont.render(str(B.credits), False, (201,115,81))
+    Text = ScoreFont.render(str(B.score), False, (201,115,81))
     window.blit(Text, (scr_width//2-180, scr_height//2-50))
 
 
