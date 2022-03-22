@@ -1,0 +1,17 @@
+gyro,5,8,1
+shield,5,9,1
+corner,6,6,0
+corner,4,6,-270
+concave,6,7,-90
+concave,4,7,-270
+engine,4,10,1
+engine,6,10,1
+block,4,8,1
+block,6,8,1
+block,5,6,1
+block,4,9,1
+block,6,9,1
+cannon,5,5,0
+cannon,3,8,-270
+cannon,7,8,-90
+1050

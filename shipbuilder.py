@@ -523,7 +523,7 @@ class Projectile(Entity):
 
         #images
         self.coord = coord
-        self.image = pygame.image.load("images\\projectile.png")
+        self.image = pygame.image.load("images\\projectile.png").convert_alpha()
         self.width = self.image.get_width()
         self.height = self.image.get_height()
         self.rect = pygame.Rect(self.coord[0],self.coord[1],self.width,self.height)
@@ -985,8 +985,8 @@ class Enemy(Ship):
 class Garage:
     def __init__(self):
         #image
-        self.on = pygame.image.load("images\\garage_on.png")
-        self.off = pygame.image.load("images\\garage_off.png")
+        self.on = pygame.image.load("images\\garage_on.png").convert_alpha()
+        self.off = pygame.image.load("images\\garage_off.png").convert_alpha()
         self.image = self.on
         self.width = self.image.get_width()
         self.height = self.image.get_height()
@@ -1104,7 +1104,7 @@ class Part:
 class Cockpit(Part):
     def __init__(self, held):
         #image
-        self.image = pygame.image.load("images\\cockpit.png")
+        self.image = pygame.image.load("images\\cockpit.png").convert_alpha()
 
         #sound
         self.dropsound = [pygame.mixer.Sound("sounds\\cockpit.wav")]
@@ -1118,8 +1118,8 @@ class Cockpit(Part):
 class Engine(Part):
     def __init__(self, held):
         #image
-        self.on = pygame.image.load("images\\engine_on.png")
-        self.off = pygame.image.load("images\\engine_off.png")
+        self.on = pygame.image.load("images\\engine_on.png").convert_alpha()
+        self.off = pygame.image.load("images\\engine_off.png").convert_alpha()
         self.image = self.off
 
         #sound
@@ -1135,8 +1135,8 @@ class Engine(Part):
 class Shield(Part):
     def __init__(self, held):
         #image
-        self.on = pygame.image.load("images\\shield_on.png")
-        self.off = pygame.image.load("images\\shield_off.png")
+        self.on = pygame.image.load("images\\shield_on.png").convert_alpha()
+        self.off = pygame.image.load("images\\shield_off.png").convert_alpha()
         self.image = self.on
 
         #sounds
@@ -1158,7 +1158,7 @@ class Shield(Part):
 class Gyro(Part):
     def __init__(self, held):
         #image
-        self.image = pygame.image.load("images\\gyro.png")
+        self.image = pygame.image.load("images\\gyro.png").convert_alpha()
 
         #sounds
         self.dropsound = [pygame.mixer.Sound("sounds\\gyro.wav")]
@@ -1186,7 +1186,7 @@ class Hull(Part):
 class Block(Hull):
     def __init__(self, held):
         #image
-        self.image = pygame.image.load("images\\1x1.png")
+        self.image = pygame.image.load("images\\1x1.png").convert_alpha()
 
         super().__init__(held)
 
@@ -1197,7 +1197,7 @@ class Block(Hull):
 class Corner(Hull):
     def __init__(self, held):
         #image
-        self.image = pygame.image.load("images\\corner.png")
+        self.image = pygame.image.load("images\\corner.png").convert_alpha()
 
         super().__init__(held)
 
@@ -1209,7 +1209,7 @@ class Corner(Hull):
 class Concave(Hull):
     def __init__(self, held):
         #image
-        self.image = pygame.image.load("images\\concave.png")
+        self.image = pygame.image.load("images\\concave.png").convert_alpha()
 
         super().__init__(held)
 
@@ -1221,7 +1221,7 @@ class Concave(Hull):
 class Convex(Hull):
     def __init__(self, held):
         #image
-        self.image = pygame.image.load("images\\convex.png")
+        self.image = pygame.image.load("images\\convex.png").convert_alpha()
 
         super().__init__(held)
 
@@ -1271,7 +1271,7 @@ class Gun(Part):
 class Cannon(Gun):
     def __init__(self, held):
         #image
-        self.image = pygame.image.load("images\\cannon.png")
+        self.image = pygame.image.load("images\\cannon.png").convert_alpha()
 
         super().__init__(held)
 
@@ -1331,7 +1331,7 @@ class Explosion:
         #images
         self.cycle = []
         for i in range(1,7):
-            self.cycle.append(pygame.image.load("images\\explosions\\"+(big*"big")+"explosion#"+str(i)+".png"))
+            self.cycle.append(pygame.image.load("images\\explosions\\"+(big*"big")+"explosion#"+str(i)+".png").convert_alpha())
         #behaviour
         self.index = 0
         self.image = self.cycle[self.index]
@@ -1374,7 +1374,7 @@ class Broken(Entity):
         self.m = m
 
         #image
-        self.image = pygame.image.load("images\\dead\\"+image+".png")
+        self.image = pygame.image.load("images\\dead\\"+image+".png").convert_alpha()     
 
         #details
         self.coord = coord
@@ -1454,82 +1454,82 @@ def ScoreBox():
     Text = ScoreFont.render(str(B.score), False, (201,115,81))
     window.blit(Text, (scr_width//2-180, scr_height//2-50))
 
+if __name__ == '__main__':
+    global RESPAWN
+    RESPAWN = True
+    while RESPAWN:
+        M = Mouse()
+        B = Board()
+        S = Ship()
+        B.ships.append(S)
+        B.garage = Garage()
+        #cockpit
+        S.parts.append(Cockpit(False))
+        S.parts[-1].Drop([B.width//2, B.height//2])
 
-global RESPAWN
-RESPAWN = True
-while RESPAWN:
-    M = Mouse()
-    B = Board()
-    S = Ship()
-    B.ships.append(S)
-    B.garage = Garage()
-    #cockpit
-    S.parts.append(Cockpit(False))
-    S.parts[-1].Drop([B.width//2, B.height//2])
-
-    TitleScreen()
-    while B.RUN:
-        pygame.time.delay(1)
-        window.fill((33,44,48))
-        #input
-        if B.buildmode:
-            if not B.optionsinput:
-                M.BuildInput()
+        TitleScreen()
+        while B.RUN:
+            pygame.time.delay(1)
+            window.fill((33,44,48))
+            #input
+            if B.buildmode:
+                if not B.optionsinput:
+                    M.BuildInput()
+                else:
+                    B.Textbox()
             else:
-                B.Textbox()
-        else:
-            if S.jumpdelay > 0:
-                S.Jump()
-            else:
-                M.FlightInput()
-            for x in B.ships:
-                if x.sig != "player":
-                    x.Ai()
-        
-        #calc
-            for x in B.ships:
-                x.Calculate()
-            for i in B.projectiles:
-                i.Calculate()
-                i.Impact()
-            for i in B.broken:
-                i.Calculate()
-
-        #show
-        B.Show()
-        
-        for i in B.particlesbelow:
-            i.Show()
-        if B.buildmode: 
-            for i in S.parts:
-                i.BuildShow()
-            for i in B.items:
-                i.BuildShow()
-        else:
-            if B.garage != False:
-                B.garage.Show()
-            for i in B.broken:
-                i.Show()
-            for i in B.projectiles:
-                i.Show()
-            for x in B.ships:
-                for i in x.parts:
-                    i.FlightShow(x)
-            for i in B.explosions:
-                i.Show()
-            if S.dead:
-                ScoreBox()
+                if S.jumpdelay > 0:
+                    S.Jump()
+                else:
+                    M.FlightInput()
+                for x in B.ships:
+                    if x.sig != "player":
+                        x.Ai()
             
-        for i in B.particlesabove:
-            i.Show()
+            #calc
+                for x in B.ships:
+                    x.Calculate()
+                for i in B.projectiles:
+                    i.Calculate()
+                    i.Impact()
+                for i in B.broken:
+                    i.Calculate()
 
-        #reset
-        if not B.buildmode:
-            for x in B.ships:
-                x.Reset()
-            for i in B.projectiles:
-                i.Reset()
-            for i in B.broken:
-                i.Reset()
-        
-        pygame.display.update()
+            #show
+            B.Show()
+            
+            for i in B.particlesbelow:
+                i.Show()
+            if B.buildmode: 
+                for i in S.parts:
+                    i.BuildShow()
+                for i in B.items:
+                    i.BuildShow()
+            else:
+                if B.garage != False:
+                    B.garage.Show()
+                for i in B.broken:
+                    i.Show()
+                for i in B.projectiles:
+                    i.Show()
+                for x in B.ships:
+                    for i in x.parts:
+                        i.FlightShow(x)
+                for i in B.explosions:
+                    i.Show()
+                if S.dead:
+                    ScoreBox()
+                
+            for i in B.particlesabove:
+                i.Show()
+
+            #reset
+            if not B.buildmode:
+                for x in B.ships:
+                    x.Reset()
+                for i in B.projectiles:
+                    i.Reset()
+                for i in B.broken:
+                    i.Reset()
+            
+            pygame.display.update()
